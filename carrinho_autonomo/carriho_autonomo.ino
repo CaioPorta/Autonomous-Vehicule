@@ -1,201 +1,127 @@
-//bibliotecas: 
+// Autonomous Car Obstacle Avoidance
 #include <Servo.h>
 
-// DEFINIÇAO DE PORTAS:
-#define trig1 4
-#define echo1 7
-#define trig2 5
-#define echo2 8
-#define trig3 6
-#define echo3 9
-#define LEDe 2
-#define LEDd 10
-#define MOTOR 13
-#define BUZZ 3
-#define pisca 60
-#define S 11
-Servo servo; 
+// ==================== PIN DEFINITIONS ====================
+#define TRIG1_PIN  4
+#define ECHO1_PIN  7
+#define TRIG2_PIN  5
+#define ECHO2_PIN  8
+#define TRIG3_PIN  6
+#define ECHO3_PIN  9
 
-//DEFINIÇÕES DE DISTANCIA LIMITE (K):
-#define K1 40 //distancia limite para começar a ler os "ifs"
-#define K2 K1+20
-#define K3 K2+20
+#define LED_LEFT_PIN  2
+#define LED_RIGHT_PIN 10
+#define MOTOR_PIN     13
+#define BUZZER_PIN    3
+#define SERVO_PIN     11
 
-//DEFINIÇÕES DE ANGULOS:
-#define ET 50
-#define ep 70
-#define C 90
-#define dp 110
-#define DT 130
+// ==================== CONFIGURATION ====================
+#define BLINK_DURATION_MS   60
+#define CRITICAL_DISTANCE   40  // K1 - immediate avoidance
+#define WARNING_DISTANCE    60  // K2 - partial turn
+#define CENTER_ANGLE        90
 
+Servo servo;
 
+// ==================== SENSOR READING ====================
+long readDistance(int trigPin, int echoPin) {
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
 
-void setup() 
-{
-  ///*
+  long duration = pulseIn(echoPin, HIGH);
+  return duration / 2 / 29.1;
+}
+
+// ==================== LED INDICATOR ====================
+void blinkIndicator(int ledPin, int buzzerPin, int blinkCount, int blinkDuration) {
+  for (int i = 0; i < blinkCount; i++) {
+    digitalWrite(ledPin, LOW);
+    digitalWrite(buzzerPin, LOW);
+    delay(blinkDuration);
+    digitalWrite(ledPin, HIGH);
+    digitalWrite(buzzerPin, HIGH);
+    delay(blinkDuration);
+  }
+}
+
+// ==================== SETUP ====================
+void setup() {
   Serial.begin(9600);
   Serial.flush();
-  Serial.println("INICIANDO...");
-  //*/
-  pinMode(trig1, OUTPUT);
-  pinMode(echo1, INPUT); 
-  pinMode(trig2, OUTPUT);
-  pinMode(echo2, INPUT);
-  pinMode(trig3, OUTPUT);
-  pinMode(echo3, INPUT);
-  pinMode(LEDe, OUTPUT);
-  pinMode(LEDd, OUTPUT);
-  servo.attach(S);
-  digitalWrite(LEDe, HIGH);
-  digitalWrite(LEDd, HIGH);
-  pinMode(MOTOR, OUTPUT);
-  digitalWrite(MOTOR, HIGH);  
-  servo.write (C);
+  Serial.println("STARTING...");
+
+  pinMode(TRIG1_PIN, OUTPUT);
+  pinMode(ECHO1_PIN, INPUT);
+  pinMode(TRIG2_PIN, OUTPUT);
+  pinMode(ECHO2_PIN, INPUT);
+  pinMode(TRIG3_PIN, OUTPUT);
+  pinMode(ECHO3_PIN, INPUT);
+
+  pinMode(LED_LEFT_PIN, OUTPUT);
+  pinMode(LED_RIGHT_PIN, OUTPUT);
+  pinMode(MOTOR_PIN, OUTPUT);
+
+  digitalWrite(LED_LEFT_PIN, HIGH);
+  digitalWrite(LED_RIGHT_PIN, HIGH);
+  digitalWrite(MOTOR_PIN, HIGH);
+
+  servo.attach(SERVO_PIN);
+  servo.write(CENTER_ANGLE);
   delay(500);
- 
-  
-
 }
 
-void loop() 
-{
-  //leitura das distâncias:
-  long duration1, distance1;
-  digitalWrite(trig1, LOW);  
-  delayMicroseconds(2); 
-  digitalWrite(trig1, HIGH);
-  delayMicroseconds(10); 
-  digitalWrite(trig1, LOW);
-  duration1 = pulseIn(echo1, HIGH);
-  distance1 = (duration1/2) / 29.1;
-  
-  long duration2, distance2;
-  digitalWrite(trig2, LOW);  
-  delayMicroseconds(2); 
-  digitalWrite(trig2, HIGH);
-  delayMicroseconds(10); 
-  digitalWrite(trig2, LOW);
-  duration2 = pulseIn(echo2, HIGH);
-  distance2 = (duration2/2) / 29.1;
- 
-  long duration3, distance3;
-  digitalWrite(trig3, LOW);  
-  delayMicroseconds(2); 
-  digitalWrite(trig3, HIGH);
-  delayMicroseconds(10); 
-  digitalWrite(trig3, LOW);
-  duration3 = pulseIn(echo3, HIGH);
-  distance3 = (duration3/2) / 29.1;
-    
- // /*  
-  Serial.print("distance1:");  // indicador de distancias via serial
-  Serial.println(distance1);
-  delay(50);
-  Serial.print("distance2:");
-  Serial.println(distance2);
-  delay(50);
-  Serial.print("distance3:");
-  Serial.println(distance3);
-  delay(50);
- // */
-  
-  if (distance1<K1 || distance2<K1 || distance3<K1) // SE ALGUMA SENSOR TIVER MENOS QUE K1(distancia limite)cm, faça a leitura:  
-   {
-    
-    
-    if (distance1<distance2 && distance1<distance3) //COMANDOS PARA IR PRA "ESQUERDA TOTAL"  se distance1 for a menor
-    {
-      for(int x=0; x<2; x++) //COMANDO DE INDICADOR LED
-      {
-      digitalWrite (LEDe, LOW);
-      digitalWrite (BUZZ, LOW);
-      delay(pisca);
-      digitalWrite (LEDe, HIGH);
-      digitalWrite (BUZZ, HIGH);
-      delay(pisca);
-      }  
-      servo.write (ET);
-      delay (15);
-      if (distance1<distance2 && distance1<distance3){} // o que volta ao normal ou não
-      else
-      {
-        servo.write (C);
-        delay (15);
-      }
+// ==================== MAIN LOOP ====================
+void loop() {
+  long distFront = readDistance(TRIG1_PIN, ECHO1_PIN);
+  long distLeft  = readDistance(TRIG2_PIN, ECHO2_PIN);
+  long distRight = readDistance(TRIG3_PIN, ECHO3_PIN);
 
-    if (distance3<distance1 && distance3<distance2) //COMANDOS PARA IR PRA "DIREITA TOTAL"   se distance3 for a menor//perfeito!
-    {
-      for(int x=0; x<2; x++) //COMANDO DE INDICADOR LED
-      {
-      digitalWrite (LEDd, LOW);
-      digitalWrite (BUZZ, LOW);
-      delay(pisca);
-      digitalWrite (LEDd, HIGH);
-      digitalWrite (BUZZ, HIGH);
-      delay(pisca);
-      }  
-      servo.write (DT);
-      delay (15);
-      if (distance3<distance1 && distance3<distance2) {} // o que volta ao normal ou não
-      else
-      {
-        servo.write (C);
-        delay (15);
-      }
-    }
-    }
-   }
+  // Debug output
+  // Serial.print("distance1: ");
+  // Serial.println(distFront);
+  // Serial.print("distance2: ");
+  // Serial.println(distLeft);
+  // Serial.print("distance3: ");
+  // Serial.println(distRight);
+  // delay(50);
 
-   
-    else if (distance1<K2 || distance2<K2 || distance3<K2) //K2 direções parciais
-   {
-     
-    if (distance1<distance2 && distance1<distance3) // ir pra esquerda parcial
-    { 
-      for(int x=0; x<2; x++) //COMANDO DE INDICADOR LED
-      {
-      digitalWrite (LEDe, LOW);
-      digitalWrite (BUZZ, LOW);
-      delay(pisca);
-      digitalWrite (LEDe, HIGH);
-      digitalWrite (BUZZ, HIGH);
-      delay(pisca);
-      }  
-      servo.write (ep);
-      delay (15);
-      if (distance1<distance2 && distance1<distance3){}
-      else
-      {
-        servo.write (C);
-        delay (15);
-      }
-    }
+  int servoAngle = CENTER_ANGLE;
+  bool obstacleDetected = false;
 
-      if (distance3<distance1 && distance3<distance2) // ir pra direita parcial
-      { 
-      for(int x=0; x<2; x++) //COMANDO DE INDICADOR LED
-      {
-      digitalWrite (LEDd, LOW);
-      digitalWrite (BUZZ, LOW);
-      delay(pisca);
-      digitalWrite (LEDd, HIGH);
-      digitalWrite (BUZZ, HIGH);
-      delay(pisca);
-      }  
-      servo.write (dp);
-      delay (15);
-      if (distance3<distance1 && distance3<distance2) {}
-      else 
-      {
-        servo.write (C);
-        delay (15);
-      }
-      }
+  // Critical zone: immediate full turn
+  if (distFront < CRITICAL_DISTANCE || distLeft < CRITICAL_DISTANCE || distRight < CRITICAL_DISTANCE) {
+    obstacleDetected = true;
+
+    if (distFront < distLeft && distFront < distRight) {
+      blinkIndicator(LED_LEFT_PIN, BUZZER_PIN, 2, BLINK_DURATION_MS);
+      servoAngle = 50;  // full left
     }
-    else 
-    {
-      servo.write (C);
-      delay (15);
+    else if (distRight < distFront && distRight < distLeft) {
+      blinkIndicator(LED_RIGHT_PIN, BUZZER_PIN, 2, BLINK_DURATION_MS);
+      servoAngle = 130;  // full right
     }
+  }
+  // Warning zone: partial turn
+  else if (distFront < WARNING_DISTANCE || distLeft < WARNING_DISTANCE || distRight < WARNING_DISTANCE) {
+    obstacleDetected = true;
+
+    if (distFront < distLeft && distFront < distRight) {
+      blinkIndicator(LED_LEFT_PIN, BUZZER_PIN, 2, BLINK_DURATION_MS);
+      servoAngle = 70;  // partial left
+    }
+    else if (distRight < distFront && distRight < distLeft) {
+      blinkIndicator(LED_RIGHT_PIN, BUZZER_PIN, 2, BLINK_DURATION_MS);
+      servoAngle = 110;  // partial right
+    }
+  }
+
+  servo.write(servoAngle);
+  delay(15);
+
+  if (!obstacleDetected) {
+    servo.write(CENTER_ANGLE);
+  }
 }
-
